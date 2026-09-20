@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose draws every surface; this only colours the window before the
+         first frame, in the system's own light or dark. -->
+    <style name="Theme.Schall" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>
