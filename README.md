@@ -12,6 +12,11 @@ it shows. The code carries the server address and a token minted for this
 phone. The token is stored in the app's private storage and revoked from the
 same page on the web.
 
+On Android 17 the app asks for local network access the first time it opens.
+Without it Android drops every connection to a server on the same Wi-Fi and
+the sign-in times out after 15 s; DNS still answers, so nothing else hints at
+it. Grant it, or allow it later under the app's permissions.
+
 ## Build
 
 ```sh
