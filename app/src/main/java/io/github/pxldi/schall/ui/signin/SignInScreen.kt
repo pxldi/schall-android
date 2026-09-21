@@ -23,6 +23,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -30,11 +31,14 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import io.github.pxldi.schall.SchallApp
 import io.github.pxldi.schall.data.Api
+import io.github.pxldi.schall.data.ApiException
 import io.github.pxldi.schall.data.Session
 import io.github.pxldi.schall.data.StoredSession
 import io.github.pxldi.schall.data.json
 import io.github.pxldi.schall.data.normaliseServer
 import io.github.pxldi.schall.data.text
+import io.github.pxldi.schall.ui.common.LOCAL_NETWORK_HINT
+import io.github.pxldi.schall.ui.common.localNetworkAccessMissing
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -52,6 +56,7 @@ fun SignInScreen(app: SchallApp) {
     var busy by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val scan = rememberLauncherForActivityResult(ScanContract()) { result ->
         val text = result.contents ?: return@rememberLauncherForActivityResult
@@ -83,7 +88,10 @@ fun SignInScreen(app: SchallApp) {
                 val me = Api(Session(address, secret), app.http).me()
                 app.sessions.save(StoredSession(address, secret, me.actor))
             } catch (failed: Exception) {
-                error = failed.text()
+                // A refused token is an ApiException. Anything else never
+                // reached the server, and on Android 17 the usual reason is
+                // the local network permission.
+                error = if (failed !is ApiException && localNetworkAccessMissing(context)) LOCAL_NETWORK_HINT else failed.text()
             } finally {
                 busy = false
             }

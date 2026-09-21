@@ -41,6 +41,7 @@ import androidx.navigation.compose.rememberNavController
 import io.github.pxldi.schall.SchallApp
 import io.github.pxldi.schall.data.Api
 import io.github.pxldi.schall.data.StoredSession
+import io.github.pxldi.schall.ui.common.AskLocalNetworkAccess
 import io.github.pxldi.schall.ui.common.LocalApi
 import io.github.pxldi.schall.ui.common.LocalAppStore
 import io.github.pxldi.schall.ui.common.LocalLive
@@ -71,8 +72,14 @@ fun SchallRoot(app: SchallApp, reviewLinks: Flow<Unit>) {
 
     when (val state = gate) {
         Gate.Unknown -> Box(Modifier.fillMaxSize())
-        Gate.SignedOut -> SignInScreen(app)
-        is Gate.SignedIn -> SignedIn(app, state.stored, reviewLinks)
+        Gate.SignedOut -> {
+            AskLocalNetworkAccess()
+            SignInScreen(app)
+        }
+        is Gate.SignedIn -> {
+            AskLocalNetworkAccess()
+            SignedIn(app, state.stored, reviewLinks)
+        }
     }
 }
 
