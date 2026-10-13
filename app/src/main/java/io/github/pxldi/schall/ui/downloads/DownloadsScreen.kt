@@ -1,10 +1,16 @@
 package io.github.pxldi.schall.ui.downloads
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -12,7 +18,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.pxldi.schall.data.DownloadRequest
@@ -20,77 +30,90 @@ import io.github.pxldi.schall.data.DownloadRequests
 import io.github.pxldi.schall.data.Stale
 import io.github.pxldi.schall.domain.downloadTitle
 import io.github.pxldi.schall.domain.formatBytes
-import io.github.pxldi.schall.ui.common.Controls
-import io.github.pxldi.schall.ui.common.ErrorLine
+import io.github.pxldi.schall.ui.common.Choice
+import io.github.pxldi.schall.ui.common.Choices
+import io.github.pxldi.schall.ui.common.Chip
+import io.github.pxldi.schall.ui.common.CoverArt
+import io.github.pxldi.schall.ui.common.CoverRef
 import io.github.pxldi.schall.ui.common.KeepFresh
-import io.github.pxldi.schall.ui.common.ListRow
-import io.github.pxldi.schall.ui.common.Listing
 import io.github.pxldi.schall.ui.common.Load
 import io.github.pxldi.schall.ui.common.Loader
 import io.github.pxldi.schall.ui.common.LocalApi
 import io.github.pxldi.schall.ui.common.LocalAppStore
-import io.github.pxldi.schall.ui.common.Meta
-import io.github.pxldi.schall.ui.common.Piles
-import io.github.pxldi.schall.ui.common.StateLine
+import io.github.pxldi.schall.ui.common.PrintedPage
+import io.github.pxldi.schall.ui.common.QuietButton
+import io.github.pxldi.schall.ui.common.Said
+import io.github.pxldi.schall.ui.common.Tone
 import io.github.pxldi.schall.ui.common.rememberAction
+import io.github.pxldi.schall.ui.theme.Duoton
+import io.github.pxldi.schall.ui.theme.Misprint
+import io.github.pxldi.schall.ui.theme.Type
 
-private val piles = listOf("open" to "Open", "review" to "Needs review", "failed" to "Failed")
+/** The three piles the phone shows. Copies waiting on a person are on the
+ * Review tab, so they are not a fourth pile here. */
+private enum class Pile(val view: String, val label: String) {
+    Open("open", "Open"),
+    Done("imported", "Done"),
+    Failed("failed", "Failed"),
+}
 
-/** The one word the row says about what is happening to the download; the
- * same vocabulary as the web's Downloads screen. */
-private fun state(download: DownloadRequest): String = when {
-    download.status == "failed" -> "Failed"
-    download.status == "cancelled" -> "Cancelled"
-    download.importStatus == "needs_review" -> "Needs review"
-    download.importStatus == "imported" -> "Imported"
-    download.status == "requested" -> if (download.startable) "Ready" else "Waiting"
-    download.progress.transferredBytes == 0L && download.progress.queuedCount > 0 -> "Queued at peer"
-    download.status == "completed" -> "Checking"
-    else -> "Downloading"
+/** What is happening to the download, in the web's words, with the colour of
+ * that state. Null while bytes are arriving: the percentage says it. */
+private fun standing(download: DownloadRequest): Pair<String, Tone>? = when {
+    download.status == "failed" -> "Failed" to Tone.Fail
+    download.status == "cancelled" -> "Cancelled" to Tone.Quiet
+    download.importStatus == "needs_review" -> "Needs review" to Tone.Want
+    download.importStatus == "imported" -> "Imported" to Tone.Own
+    download.status == "requested" -> (if (download.startable) "Ready" else "Waiting") to Tone.Quiet
+    download.progress.transferredBytes == 0L && download.progress.queuedCount > 0 -> "Queued" to Tone.Busy
+    download.status == "completed" -> "Checking" to Tone.Busy
+    else -> null
 }
 
 @Composable
 fun DownloadsScreen(openQuestion: (String) -> Unit) {
     val api = LocalApi.current
-    var pile by rememberSaveable { mutableStateOf("open") }
+    var pile by rememberSaveable { mutableStateOf(Pile.Open) }
     val store = LocalAppStore.current
-    val loader = viewModel(store, key = "downloads:$pile") { Loader { api.downloads(pile) } }
+    val loader = viewModel(store, key = "downloads:${pile.view}") { Loader { api.downloads(pile.view) } }
     KeepFresh(Stale.Downloads) { loader.refresh() }
 
     val load by loader.state.collectAsStateWithLifecycle()
     val refreshing by loader.refreshing.collectAsStateWithLifecycle()
     val stale by loader.stale.collectAsStateWithLifecycle()
-    val counts = (load as? Load.Ready<DownloadRequests>)?.value?.counts
+    val page = (load as? Load.Ready<DownloadRequests>)?.value
+    val items = page?.items.orEmpty()
 
-    Column(Modifier.fillMaxSize()) {
-        Piles(
-            value = pile,
-            options = piles.map { (key, label) ->
-                Triple(
-                    key,
-                    label,
-                    when (key) {
-                        "open" -> counts?.open
-                        "review" -> counts?.review
-                        else -> counts?.failed
-                    },
-                )
-            },
-            onChange = { pile = it },
-        )
-        val listed = when (val state = load) {
-            is Load.Ready -> Load.Ready(state.value.items)
-            Load.Loading -> Load.Loading
-            is Load.Failed -> state
+    PrintedPage(
+        title = "Downloads",
+        covers = items.mapNotNull { it.albumId }.distinct().take(3).map { CoverRef(api.coverUrl(it), it) },
+        refreshing = refreshing,
+        onRefresh = loader::refresh,
+    ) {
+        item(key = "piles") {
+            Choices {
+                Pile.entries.forEach { entry ->
+                    val count = page?.counts?.let {
+                        when (entry) {
+                            Pile.Open -> it.open
+                            Pile.Done -> null
+                            Pile.Failed -> it.failed
+                        }
+                    }
+                    if (entry == Pile.Failed) {
+                        Choice(null, pile == entry, { pile = entry }, icon = Misprint.Alert, count = count, tint = Duoton.fail, description = entry.label)
+                    } else {
+                        Choice(if (count != null && count > 0) "${entry.label} $count" else entry.label, pile == entry, { pile = entry })
+                    }
+                }
+            }
         }
-        Listing(
-            load = listed,
-            refreshing = refreshing,
-            stale = stale,
-            onRefresh = loader::refresh,
-            empty = "Nothing here.",
-            key = { it.id },
-        ) { download -> DownloadRow(download, openQuestion) }
+        (load as? Load.Failed)?.let { item { Said(it.message, error = true) } }
+        if (stale.isNotEmpty()) item { Said(stale, error = true) }
+        if (page != null && items.isEmpty()) item { Said("Nothing here.") }
+        items.forEach { download ->
+            item(key = download.id) { DownloadRow(download, openQuestion) }
+        }
     }
 }
 
@@ -102,45 +125,71 @@ private fun DownloadRow(download: DownloadRequest, openQuestion: (String) -> Uni
     val (first, second) = downloadTitle(download)
     val progress = download.progress
     val open = download.status == "requested" || download.status == "started"
+    val review = download.importStatus == "needs_review"
+    val mark = standing(download)
+    val fraction = if (download.totalSizeBytes > 0) (progress.transferredBytes.toFloat() / download.totalSizeBytes).coerceIn(0f, 1f) else 0f
+    val songs = if (download.fileCount == 1) "1 song" else "${download.fileCount} songs"
     val detail = listOf(
-        "${progress.completedCount}/${download.fileCount} files",
-        "${formatBytes(progress.transferredBytes).ifEmpty { "0 B" }} of ${formatBytes(download.totalSizeBytes).ifEmpty { "?" }}",
         download.username,
-    ).joinToString(" · ")
+        if (open && progress.transferredBytes > 0) "${formatBytes(progress.transferredBytes)} of ${formatBytes(download.totalSizeBytes).ifEmpty { "?" }}"
+        else formatBytes(download.totalSizeBytes),
+    ).filter { it.isNotEmpty() }.joinToString(" · ")
 
-    ListRow(first, second) {
-        StateLine(state(download), detail)
-        Meta(download.error.orEmpty(), error = true)
-        download.peerQuestion?.let { Meta("${it.username} asks: ${it.message}") }
-        ErrorLine(act.error)
-        Controls {
-            if (download.startable) {
-                Button(onClick = { act.run(Stale.Downloads) { api.startDownload(download.id) } }, enabled = !act.busy) { Text("Start") }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .then(if (review) Modifier.clickable { openQuestion("download:${download.id}") } else Modifier)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            CoverArt(download.albumId?.let(api::coverUrl), download.albumId ?: first)
+            Column(Modifier.weight(1f)) {
+                Text(first, style = Type.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(listOf(second, songs).filter { it.isNotEmpty() }.joinToString(" · "), style = Type.body, color = Duoton.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            if (download.importStatus == "needs_review") {
-                Button(onClick = { openQuestion("download:${download.id}") }) { Text("Decide") }
-            }
-            if (download.retryableCount > 0) {
-                OutlinedButton(onClick = { act.run(Stale.Downloads) { api.retryDownload(download.id) } }, enabled = !act.busy) { Text("Retry") }
-            }
-            if (open) {
-                OutlinedButton(onClick = { cancelling = true }, enabled = !act.busy) { Text("Cancel") }
+            if (mark != null) Chip(mark.first, mark.second)
+            else Text("${(fraction * 100).toInt()}%", style = Type.label, color = Duoton.busy)
+        }
+        if (mark == null) {
+            Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(Duoton.line)) {
+                Box(Modifier.fillMaxWidth(fraction).height(3.dp).background(Duoton.busy))
             }
         }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(detail, style = Type.small, color = Duoton.ink3, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (download.startable) {
+                QuietButton(null, Misprint.Play, { act.run(Stale.Downloads) { api.startDownload(download.id) } }, enabled = !act.busy, description = "Start", height = 36.dp)
+            }
+            if (review) {
+                QuietButton(null, Misprint.Checklist, { openQuestion("download:${download.id}") }, description = "Decide", tint = Duoton.want, height = 36.dp)
+            }
+            if (download.retryableCount > 0) {
+                QuietButton(null, Misprint.Refresh, { act.run(Stale.Downloads) { api.retryDownload(download.id) } }, enabled = !act.busy, description = "Retry", height = 36.dp)
+            }
+            if (open) {
+                QuietButton(null, Misprint.Close, { cancelling = true }, enabled = !act.busy, description = "Cancel", height = 36.dp)
+            }
+        }
+        download.error?.takeIf { it.isNotEmpty() }?.let { Text(it, style = Type.small, color = Duoton.fail) }
+        download.peerQuestion?.let { Text("${it.username} asks: ${it.message}", style = Type.small, color = Duoton.ink2) }
+        if (act.error.isNotEmpty()) Text(act.error, style = Type.small, color = Duoton.fail)
     }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(Duoton.raise))
 
     if (cancelling) {
         AlertDialog(
             onDismissRequest = { cancelling = false },
-            title = { Text("Cancel this download?") },
-            text = { Text(first) },
+            containerColor = Duoton.panel,
+            title = { Text("Cancel this download?", style = Type.name) },
+            text = { Text(first, style = Type.body, color = Duoton.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     cancelling = false
                     act.run(Stale.Downloads) { api.cancelDownload(download.id) }
-                }) { Text("Cancel download") }
+                }) { Text("Cancel download", color = Duoton.fail) }
             },
-            dismissButton = { TextButton(onClick = { cancelling = false }) { Text("Keep") } },
+            dismissButton = { TextButton(onClick = { cancelling = false }) { Text("Keep", color = Duoton.ink) } },
         )
     }
 }
