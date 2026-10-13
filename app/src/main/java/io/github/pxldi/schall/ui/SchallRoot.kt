@@ -124,7 +124,11 @@ internal fun SignedIn(app: SchallApp, stored: StoredSession, reviewLinks: Flow<U
                     )
                 }
                 composable("question/{id}") { entry ->
-                    ReviewQuestionScreen(id = entry.arguments?.getString("id").orEmpty(), back = back)
+                    ReviewQuestionScreen(
+                        id = entry.arguments?.getString("id").orEmpty(),
+                        back = back,
+                        openInstead = { next -> nav.navigate("question/$next") { popUpTo("question/{id}") { inclusive = true } } },
+                    )
                 }
                 composable("settings") { TitledScreen("Settings", back = back) { SettingsScreen(app, stored) } }
                 composable("wants") { TitledScreen("Wishlist", back = back) { WantsScreen() } }
@@ -162,7 +166,7 @@ private fun Home(
                     openSettings = openSettings,
                     openRelease = openRelease,
                 )
-                Tab.Review -> TitledScreen("Review") { ReviewListScreen(openQuestion) }
+                Tab.Review -> ReviewListScreen(openQuestion)
                 Tab.Downloads -> TitledScreen("Downloads") { DownloadsScreen(openQuestion) }
                 Tab.Search -> TitledScreen("Search") { SearchScreen() }
             }
