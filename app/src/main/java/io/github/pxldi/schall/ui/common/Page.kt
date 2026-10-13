@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.SubcomposeAsyncImage
@@ -124,13 +125,14 @@ fun PrintedPage(
 fun CoverArt(url: String?, seed: String, inks: Inks? = null, size: Dp = 44.dp, shape: Shape = RoundedCornerShape(6.dp)) {
     val token = LocalApi.current.session.token
     val context = LocalContext.current
-    val modifier = Modifier.size(size).clip(shape)
+    // An unspecified size fills whatever box the caller gave, as a grid tile does.
+    val modifier = (if (size.isSpecified) Modifier.size(size) else Modifier.fillMaxSize()).clip(shape)
     val fallback = @Composable { GeneratedCover(seed, inks, modifier) }
     if (url == null) {
         fallback()
         return
     }
-    val px = size.value.toInt() * 2
+    val px = if (size.isSpecified) size.value.toInt() * 2 else 512
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(context)
             .data(Pictures.sized(url, if (px <= 128) 128 else 256))
@@ -311,33 +313,27 @@ fun Said(text: String, error: Boolean = false) {
 }
 
 
-/** A page whose list is not printed yet: the print band and the title above
- * a screen that draws its own list. */
+/** The want control on a song or release row: an outlined plus, or the light
+ * ink with a dark tick once wanted. Pressing the tick removes the want. */
 @Composable
-fun TitledScreen(title: String, back: (() -> Unit)? = null, actions: @Composable RowScope.() -> Unit = {}, content: @Composable () -> Unit) {
-    val page = LocalPage.current
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth()) {
-            Print(emptyList(), PrintMode.Strip, page.inks, Modifier.matchParentSize())
-            Column(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp).height(56.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (back != null) IconButton(onClick = back) { MisprintIcon(Misprint.ChevronLeft, description = "Back") }
-                    Box(Modifier.weight(1f))
-                    actions()
-                }
-                Text(
-                    title,
-                    style = Type.title.copy(fontSize = 56.sp, lineHeight = 50.sp),
-                    color = Duoton.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 40.dp, bottom = 16.dp).semantics { heading() },
-                )
-            }
+fun WantToggle(wanted: Boolean, name: String, onClick: () -> Unit, enabled: Boolean = true) {
+    val inks = LocalInks.current
+    Box(
+        Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = if (wanted) "Remove $name" else "Want $name", onClick = onClick)
+            .semantics { this[androidx.compose.ui.semantics.SemanticsProperties.ContentDescription] = listOf(if (wanted) "Remove $name" else "Want $name") },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(28.dp)
+                .clip(CircleShape)
+                .then(if (wanted) Modifier.background(inks.light) else Modifier.border(2.dp, Duoton.line2, CircleShape)),
+            contentAlignment = Alignment.Center,
+        ) {
+            MisprintIcon(if (wanted) Misprint.Check else Misprint.Plus, size = 16.dp, tint = if (wanted) inks.dark else Duoton.ink)
         }
-        Box(Modifier.weight(1f)) { content() }
     }
 }

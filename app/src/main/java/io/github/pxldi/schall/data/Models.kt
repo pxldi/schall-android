@@ -253,3 +253,119 @@ data class OverviewAdded(
     val coverUrl: String? = null,
     val inks: InksJson? = null,
 )
+
+/** The library search, as the web's search popup reads it. Files and
+ * playlists come back too; the phone shows artists, releases and songs. */
+@Serializable
+data class GlobalSearch(
+    val artists: List<FoundArtist> = emptyList(),
+    val releases: List<FoundRelease> = emptyList(),
+    val tracks: List<FoundTrack> = emptyList(),
+)
+
+@Serializable
+data class FoundArtist(
+    val id: String,
+    val name: String = "",
+    val followed: Boolean = false,
+    val fileCount: Int = 0,
+    val ownedReleases: Int = 0,
+    val countedReleases: Int = 0,
+)
+
+@Serializable
+data class FoundRelease(
+    val id: String,
+    val title: String = "",
+    val artistName: String = "",
+    val albumType: String = "",
+    val releaseDate: String? = null,
+    val trackCount: Int = 0,
+    val ownedTrackCount: Int = 0,
+    val inks: InksJson? = null,
+)
+
+@Serializable
+data class FoundTrack(
+    val id: String,
+    val title: String = "",
+    val durationMs: Long? = null,
+    val albumId: String = "",
+    val albumTitle: String = "",
+    val artistName: String = "",
+    val owned: Boolean = false,
+    val wantStatus: String? = null,
+)
+
+@Serializable
+data class Discography(val releases: Int = 0, val owned: Int = 0, val missing: Int = 0, val counted: Int = 0)
+
+@Serializable
+data class ArtistDetail(
+    val id: String,
+    val name: String = "",
+    val followed: Boolean = false,
+    val monitorLevel: String = "everything",
+    val wantMissing: Boolean = false,
+    val discography: Discography = Discography(),
+    val genres: List<String> = emptyList(),
+    val leadAlbumId: String? = null,
+    val inks: InksJson? = null,
+)
+
+@Serializable
+data class Release(
+    val id: String,
+    val title: String = "",
+    val firstReleaseDate: String? = null,
+    val albumType: String = "",
+    val secondaryTypes: List<String> = emptyList(),
+    val trackCount: Int = 0,
+    val ownedTrackCount: Int = 0,
+    val dismissedTrackCount: Int = 0,
+    val wantedTrackCount: Int = 0,
+    val leavingTrackCount: Int = 0,
+    val artistMonitorLevel: String = "",
+    val hasCover: Boolean = false,
+    val inks: InksJson? = null,
+)
+
+@Serializable
+data class ReleaseList(val items: List<Release> = emptyList(), val total: Int = 0)
+
+@Serializable
+data class ReleaseDetail(
+    val id: String,
+    val artistId: String = "",
+    val artistName: String = "",
+    val artistFollowed: Boolean = false,
+    val title: String = "",
+    val firstReleaseDate: String? = null,
+    val albumType: String = "",
+    val mediaCount: Int = 1,
+    val trackCount: Int = 0,
+    val trackRefreshStatus: String = "",
+    val inks: InksJson? = null,
+)
+
+@Serializable
+data class Track(
+    val id: String,
+    val musicbrainzRecordingId: String? = null,
+    val title: String = "",
+    val discNumber: Int = 1,
+    val trackNumber: Int? = null,
+    val durationMs: Long? = null,
+    val owned: Boolean = false,
+    val heldElsewhere: Boolean = false,
+    val wantId: String? = null,
+    val wantStatus: String? = null,
+    val removesAt: String? = null,
+)
+
+@Serializable
+data class TrackList(val items: List<Track> = emptyList())
+
+/** What a want or a removal answered. The screens only refetch on it. */
+@Serializable
+data class Done(val removed: Int = 0, val wanted: Int = 0)

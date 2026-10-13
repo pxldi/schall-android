@@ -23,7 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.pxldi.schall.ui.common.LocalPage
 import io.github.pxldi.schall.ui.common.PageState
-import io.github.pxldi.schall.ui.common.TitledScreen
 import io.github.pxldi.schall.ui.overview.OverviewScreen
 import io.github.pxldi.schall.ui.theme.Duoton
 import io.github.pxldi.schall.ui.theme.LocalInks
@@ -58,6 +57,8 @@ import io.github.pxldi.schall.ui.common.LocalApi
 import io.github.pxldi.schall.ui.common.LocalAppStore
 import io.github.pxldi.schall.ui.common.LocalLive
 import io.github.pxldi.schall.ui.downloads.DownloadsScreen
+import io.github.pxldi.schall.ui.artist.ArtistScreen
+import io.github.pxldi.schall.ui.release.ReleaseScreen
 import io.github.pxldi.schall.ui.review.ReviewListScreen
 import io.github.pxldi.schall.ui.review.ReviewQuestionScreen
 import io.github.pxldi.schall.ui.review.reviewCount
@@ -120,7 +121,8 @@ internal fun SignedIn(app: SchallApp, stored: StoredSession, reviewLinks: Flow<U
                         openQuestion = { nav.navigate("question/$it") },
                         openSettings = { nav.navigate("settings") },
                         openWants = { nav.navigate("wants") },
-                        openRelease = { },
+                        openRelease = { nav.navigate("release/$it") },
+                        openArtist = { nav.navigate("artist/$it") },
                     )
                 }
                 composable("question/{id}") { entry ->
@@ -132,6 +134,12 @@ internal fun SignedIn(app: SchallApp, stored: StoredSession, reviewLinks: Flow<U
                 }
                 composable("settings") { SettingsScreen(app, stored, back) }
                 composable("wants") { WantsScreen(back) }
+                composable("artist/{id}") { entry ->
+                    ArtistScreen(entry.arguments?.getString("id").orEmpty(), back, openRelease = { nav.navigate("release/$it") })
+                }
+                composable("release/{id}") { entry ->
+                    ReleaseScreen(entry.arguments?.getString("id").orEmpty(), back, openArtist = { nav.navigate("artist/$it") })
+                }
             }
         }
     }
@@ -151,6 +159,7 @@ private fun Home(
     openSettings: () -> Unit,
     openWants: () -> Unit,
     openRelease: (String) -> Unit,
+    openArtist: (String) -> Unit,
 ) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(reviewLinks) { reviewLinks.collect { tab = Tab.Review.ordinal } }
@@ -168,7 +177,7 @@ private fun Home(
                 )
                 Tab.Review -> ReviewListScreen(openQuestion)
                 Tab.Downloads -> DownloadsScreen(openQuestion)
-                Tab.Search -> TitledScreen("Search") { SearchScreen() }
+                Tab.Search -> SearchScreen(openArtist, openRelease)
             }
         }
         BottomBar(tab, waiting) { tab = it }

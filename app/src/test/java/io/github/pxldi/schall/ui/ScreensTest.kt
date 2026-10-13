@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ApplicationProvider
 import com.github.takahirom.roborazzi.captureRoboImage
 import io.github.pxldi.schall.SchallApp
@@ -51,6 +52,40 @@ class ScreensTest {
               "copies":[{"id":"c1","username":"harbourmaster","name":"Watchfire.flac","sizeBytes":38200000,"verdict":"held"}]},
              {"kind":"resolution","target":{"id":"t2","artist":"Kestrel Grove","title":"Evensong (single edit)","album":"Harrow Bell","durationMs":212000,"status":"review"},
               "candidates":[{"recordingId":"m1","artistName":"Kestrel Grove","trackTitle":"Evensong","releaseTitle":"Harrow Bell","durationMs":287000}]}
+            ]}
+        """,
+        "/api/v1/search" to """
+            {"artists":[{"id":"a1","name":"Vela Nine","followed":true,"fileCount":12,"ownedReleases":2,"countedReleases":7}],
+             "releases":[{"id":"r0","title":"Signal Fires","artistName":"Vela Nine","albumType":"album","releaseDate":"2023-04-01","trackCount":5,"ownedTrackCount":2}],
+             "tracks":[
+              {"id":"t4","title":"Smoke Column","durationMs":264000,"albumId":"r0","albumTitle":"Signal Fires","artistName":"Vela Nine","wantStatus":"pending"},
+              {"id":"t5","title":"Ember Path","durationMs":312000,"albumId":"r0","albumTitle":"Signal Fires","artistName":"Vela Nine"},
+              {"id":"t1","title":"Beacon One","durationMs":189000,"albumId":"r0","albumTitle":"Signal Fires","artistName":"Vela Nine","owned":true}
+             ]}
+        """,
+        "/api/v1/albums/r0" to """
+            {"id":"r0","artistId":"a1","artistName":"Vela Nine","title":"Signal Fires","firstReleaseDate":"2023-04-01","albumType":"album","mediaCount":1,"trackCount":5,
+             "inks":{"dark":"#1f4a33","light":"#bfe8c9"}}
+        """,
+        "/api/v1/albums/r0/tracks" to """
+            {"items":[
+             {"id":"t1","musicbrainzRecordingId":"m1","title":"Beacon One","discNumber":1,"trackNumber":1,"durationMs":189000,"owned":true},
+             {"id":"t2","musicbrainzRecordingId":"m2","title":"Beacon Two","discNumber":1,"trackNumber":2,"durationMs":221000,"owned":true},
+             {"id":"t3","musicbrainzRecordingId":"m3","title":"Watchfire","discNumber":1,"trackNumber":3,"durationMs":302000,"wantStatus":"awaiting_review"},
+             {"id":"t4","musicbrainzRecordingId":"m4","title":"Smoke Column","discNumber":1,"trackNumber":4,"durationMs":264000,"wantStatus":"pending"},
+             {"id":"t5","musicbrainzRecordingId":"m5","title":"Ember Path","discNumber":1,"trackNumber":5,"durationMs":312000}
+            ]}
+        """,
+        "/api/v1/artists/a1" to """
+            {"id":"a1","name":"Vela Nine","followed":true,"monitorLevel":"everything","discography":{"releases":4,"owned":1,"missing":3,"counted":4},
+             "genres":["post-rock"],"leadAlbumId":"r0","inks":{"dark":"#1f4a33","light":"#bfe8c9"}}
+        """,
+        "/api/v1/albums" to """
+            {"total":4,"items":[
+             {"id":"r0","title":"Signal Fires","firstReleaseDate":"2023-04-01","albumType":"album","trackCount":5,"ownedTrackCount":2,"inks":{"dark":"#1f4a33","light":"#bfe8c9"}},
+             {"id":"r1","title":"Nine Lanterns","firstReleaseDate":"2021-02-01","albumType":"album","trackCount":3,"ownedTrackCount":0,"inks":{"dark":"#3d2418","light":"#efc9a8"}},
+             {"id":"r2","title":"Low Tide","firstReleaseDate":"2019-06-01","albumType":"album","trackCount":8,"ownedTrackCount":8,"inks":{"dark":"#13204a","light":"#ffb59e"}},
+             {"id":"r3","title":"Ember","firstReleaseDate":"2022-01-01","albumType":"single","trackCount":1,"ownedTrackCount":0}
             ]}
         """,
         "/api/v1/downloads" to """
@@ -150,5 +185,34 @@ class ScreensTest {
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("build/screens/settings.png")
+    }
+
+    @Test
+    fun search() {
+        show()
+        compose.onAllNodesWithText("Search").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Search").performTextInput("vela")
+        compose.mainClock.advanceTimeBy(400)
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/search.png")
+    }
+
+    @Test
+    fun release() {
+        show()
+        compose.onAllNodesWithText("Beacon One").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/release.png")
+    }
+
+    @Test
+    fun artist() {
+        show()
+        compose.onAllNodesWithText("Beacon One").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onAllNodesWithText("Vela Nine").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/artist.png")
     }
 }
