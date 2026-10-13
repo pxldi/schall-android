@@ -90,9 +90,30 @@ class Api(val session: Session, val client: OkHttpClient) {
             """{"musicbrainzId":${json.encodeToString(serializer(), artist.musicbrainzId)},"name":${json.encodeToString(serializer(), artist.name)},"sortName":${json.encodeToString(serializer(), artist.sortName)}}""",
         )
 
+    fun artistImageUrl(artistId: String) = url("/api/v1/artists/${enc(artistId)}/image")
+
+    suspend fun search(query: String): GlobalSearch = get("/api/v1/search?q=${enc(query)}&limit=8")
+    suspend fun artist(id: String): ArtistDetail = get("/api/v1/artists/${enc(id)}")
+    suspend fun releasesOf(artistId: String): ReleaseList = get("/api/v1/albums?artistId=${enc(artistId)}&sort=year")
+    suspend fun follow(id: String, level: String = "everything"): Done {
+        post<Artist>("/api/v1/artists/${enc(id)}/follow")
+        return put("/api/v1/artists/${enc(id)}/monitor", """{"level":${json.encodeToString(serializer(), level)}}""")
+    }
+    suspend fun unfollow(id: String): Done = delete("/api/v1/artists/${enc(id)}/follow")
+    suspend fun wantMissing(id: String, on: Boolean): Done = put("/api/v1/artists/${enc(id)}/want-missing", """{"on":$on}""")
+
+    suspend fun release(id: String): ReleaseDetail = get("/api/v1/albums/${enc(id)}")
+    suspend fun tracks(albumId: String): TrackList = get("/api/v1/albums/${enc(albumId)}/tracks")
+    suspend fun wantRelease(id: String): Done = post("/api/v1/albums/${enc(id)}/wanted")
+    suspend fun removeRelease(id: String): Done = delete("/api/v1/albums/${enc(id)}/wanted")
+    suspend fun wantTrack(id: String): Done = post("/api/v1/tracks/${enc(id)}/wanted")
+    suspend fun removeTrack(id: String): Done = delete("/api/v1/tracks/${enc(id)}/wanted")
+
     private suspend inline fun <reified T> get(path: String): T = call(Request.Builder().url(url(path)).get())
     private suspend inline fun <reified T> post(path: String, body: String = ""): T =
         call(Request.Builder().url(url(path)).post(body.toRequestBody(JSON)))
+    private suspend inline fun <reified T> put(path: String, body: String): T =
+        call(Request.Builder().url(url(path)).put(body.toRequestBody(JSON)))
     private suspend inline fun <reified T> delete(path: String): T = call(Request.Builder().url(url(path)).delete())
 
     private suspend inline fun <reified T> call(builder: Request.Builder): T = withContext(Dispatchers.IO) {
