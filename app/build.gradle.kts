@@ -44,6 +44,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Screenshot tests render screens on the JVM with Robolectric's native
+    // graphics, so they need the app's resources (the font, the theme).
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // Write the pictures on every run; nothing compares them yet.
+        unitTests.all { it.systemProperty("roborazzi.test.record", "true") }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -78,4 +86,10 @@ dependencies {
     implementation(libs.zxing.embedded)
     debugImplementation(libs.compose.ui.tooling)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

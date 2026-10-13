@@ -74,6 +74,15 @@ class Api(val session: Session, val client: OkHttpClient) {
     suspend fun withdrawImportResolution(id: String, decisionId: String): DownloadRequest =
         delete("/api/v1/downloads/${enc(id)}/resolutions/${enc(decisionId)}")
 
+    suspend fun overview(zone: String): Overview = get("/api/v1/overview?tz=${enc(zone)}")
+
+    /** A picture address the API sent, made absolute. Remote addresses pass through. */
+    fun picture(path: String?): String? = when {
+        path.isNullOrEmpty() -> null
+        path.startsWith("/") -> url(path)
+        else -> path
+    }
+
     suspend fun searchArtists(query: String): ArtistSearchResults = get("/api/v1/search/artists?q=${enc(query)}")
     suspend fun followArtist(artist: ArtistSearchResult): Artist =
         post(

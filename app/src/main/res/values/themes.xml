@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Compose draws every surface; this only colours the window before the
-         first frame, in the system's own light or dark. -->
+         first frame, in the Duoton ground. There is no light mode. -->
     <style name="Theme.Schall" parent="android:Theme.DeviceDefault.NoActionBar">
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowBackground">@color/ground</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
