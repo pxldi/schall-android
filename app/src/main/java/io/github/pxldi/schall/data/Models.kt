@@ -222,3 +222,34 @@ data class Artist(val id: String, val name: String = "", val followed: Boolean =
 
 @Serializable
 data class Problem(val title: String? = null, val details: List<String>? = null)
+
+/** A release's stored inks (ADR Duoton), as the server sends them. */
+@Serializable
+data class InksJson(val dark: String = "", val light: String = "", val palette: List<String>? = null) {
+    fun toInks() = io.github.pxldi.schall.domain.Inks(dark, light, palette)
+}
+
+/** The Overview's figures, the parts the phone shows. */
+@Serializable
+data class Overview(
+    val arrived: OverviewArrived = OverviewArrived(),
+    val library: OverviewLibrary = OverviewLibrary(),
+    val recentlyAdded: List<OverviewAdded> = emptyList(),
+)
+
+@Serializable
+data class OverviewArrived(val today: Int = 0, val downloading: Int = 0)
+
+@Serializable
+data class OverviewLibrary(val fileCount: Int = 0, val totalBytes: Long = 0)
+
+@Serializable
+data class OverviewAdded(
+    val title: String = "",
+    val artist: String = "",
+    val addedAt: String = "",
+    val trackId: String? = null,
+    val releaseId: String? = null,
+    val coverUrl: String? = null,
+    val inks: InksJson? = null,
+)

@@ -2,7 +2,9 @@ package io.github.pxldi.schall
 
 import android.content.Intent
 import android.os.Bundle
+import android.graphics.Color
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import io.github.pxldi.schall.ui.SchallRoot
@@ -16,7 +18,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Always the dark ground, so the system bars draw light icons.
+        enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
         if (intent?.data?.host == "review") reviewLinks.tryEmit(Unit)
         setContent {
             SchallTheme {

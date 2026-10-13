@@ -2,8 +2,8 @@
 
 The phone app for [Schall](https://github.com/pxldi/schall), the self-hosted
 music collection manager. It answers the review queue with the audio preview,
-watches downloads and wants, and follows artists. Kotlin, Jetpack Compose,
-Material 3.
+watches downloads and wants, and follows artists. Kotlin and Jetpack Compose,
+printed in the same Duoton inks as the web (Bricolage Grotesque, Misprint icons).
 
 ## Sign in
 
