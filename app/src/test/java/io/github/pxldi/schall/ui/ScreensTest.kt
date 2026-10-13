@@ -3,6 +3,7 @@ package io.github.pxldi.schall.ui
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
@@ -52,8 +53,20 @@ class ScreensTest {
               "candidates":[{"recordingId":"m1","artistName":"Kestrel Grove","trackTitle":"Evensong","releaseTitle":"Harrow Bell","durationMs":287000}]}
             ]}
         """,
-        "/api/v1/downloads" to """{"items":[],"total":0,"counts":{}}""",
-        "/api/v1/acquisition-targets" to """{"items":[],"total":0}""",
+        "/api/v1/downloads" to """
+            {"total":2,"counts":{"open":2,"review":0,"imported":7,"failed":1},"items":[
+             {"id":"d1","albumTitle":"Signal Fires","artistName":"Vela Nine","username":"harbourmaster","status":"started","fileCount":4,"totalSizeBytes":145000000,
+              "progress":{"transferCount":4,"completedCount":0,"transferredBytes":18000000}},
+             {"id":"d2","albumTitle":"Concrete Garden","artistName":"Lotte Brandt","username":"kiezfunk","status":"started","fileCount":1,"totalSizeBytes":41000000,
+              "progress":{"transferCount":1,"queuedCount":1,"transferredBytes":0}}
+            ]}
+        """,
+        "/api/v1/acquisition-targets" to """
+            {"total":2,"items":[
+             {"id":"w1","artist":"Kestrel Grove","title":"Lantern Year","status":"pending","attempts":2,"lastAttemptAt":"2026-10-12T22:00:00Z"},
+             {"id":"w2","artist":"Neon Psalms","title":"Afterglow Static","status":"searching"}
+            ]}
+        """,
     )
 
     private val http = OkHttpClient.Builder().addInterceptor(
@@ -113,5 +126,29 @@ class ScreensTest {
         compose.onAllNodesWithText("Evensong (single edit)").onFirst().performClick()
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("build/screens/version.png")
+    }
+
+    @Test
+    fun downloads() {
+        show()
+        compose.onAllNodesWithText("Downloads").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/downloads.png")
+    }
+
+    @Test
+    fun wishlist() {
+        show()
+        compose.onAllNodesWithText("Wishlist").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/wishlist.png")
+    }
+
+    @Test
+    fun settings() {
+        show()
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/settings.png")
     }
 }

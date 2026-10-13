@@ -1,14 +1,8 @@
 package io.github.pxldi.schall.ui.settings
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,44 +16,47 @@ import androidx.compose.ui.unit.dp
 import io.github.pxldi.schall.BuildConfig
 import io.github.pxldi.schall.SchallApp
 import io.github.pxldi.schall.data.StoredSession
+import io.github.pxldi.schall.ui.common.PrintedPage
+import io.github.pxldi.schall.ui.common.QuietButton
+import io.github.pxldi.schall.ui.common.Row2
+import io.github.pxldi.schall.ui.common.Rule
+import io.github.pxldi.schall.ui.theme.Duoton
+import io.github.pxldi.schall.ui.theme.Misprint
+import io.github.pxldi.schall.ui.theme.Type
 import kotlinx.coroutines.launch
 
 @Composable
-fun SettingsScreen(app: SchallApp, stored: StoredSession) {
+fun SettingsScreen(app: SchallApp, stored: StoredSession, back: () -> Unit) {
     var confirming by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Field("Server", stored.server)
-        Field("This phone", stored.actor, "The name the token was minted under.")
-        Field("App", "Schall ${BuildConfig.VERSION_NAME}")
-        OutlinedButton(onClick = { confirming = true }) { Text("Sign out") }
+    PrintedPage(title = "Settings", covers = emptyList(), back = back) {
+        item { Row2("Server", stored.server, titleColour = Duoton.ink2, subtitleColour = Duoton.ink) }
+        item { Rule() }
+        item { Row2("This phone", stored.actor, titleColour = Duoton.ink2, subtitleColour = Duoton.ink) }
+        item { Rule() }
+        item { Row2("App", "Schall ${BuildConfig.VERSION_NAME}", titleColour = Duoton.ink2, subtitleColour = Duoton.ink) }
+        item { Rule() }
+        item {
+            Box(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                QuietButton("Sign out", Misprint.Unlink, { confirming = true })
+            }
+        }
     }
 
     if (confirming) {
         AlertDialog(
             onDismissRequest = { confirming = false },
-            title = { Text("Sign out?") },
-            text = { Text("The token stays valid on the server until it is removed under Settings → Phone there.") },
+            containerColor = Duoton.panel,
+            title = { Text("Sign out?", style = Type.name) },
+            text = { Text("The token stays valid until you remove it under Settings, Phone on the server.", style = Type.body, color = Duoton.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     confirming = false
                     scope.launch { app.sessions.clear() }
-                }) { Text("Sign out") }
+                }) { Text("Sign out", color = Duoton.fail) }
             },
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Stay") } },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Stay", color = Duoton.ink) } },
         )
-    }
-}
-
-@Composable
-private fun Field(label: String, value: String, help: String? = null) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyLarge)
-        if (help != null) Text(help, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
