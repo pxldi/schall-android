@@ -1,36 +1,29 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@file:OptIn(ExperimentalLayoutApi::class)
 
 package io.github.pxldi.schall.ui.review
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,18 +32,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.pxldi.schall.data.AcquisitionCandidate
 import io.github.pxldi.schall.data.DownloadRequest
+import io.github.pxldi.schall.data.ImportDecision
 import io.github.pxldi.schall.data.ImportFileEvidence
 import io.github.pxldi.schall.data.ImportTags
 import io.github.pxldi.schall.data.ReviewItem
 import io.github.pxldi.schall.data.Stale
 import io.github.pxldi.schall.domain.CopyGroupView
 import io.github.pxldi.schall.domain.Question
-import io.github.pxldi.schall.domain.downloadTitle
 import io.github.pxldi.schall.domain.formatBytes
 import io.github.pxldi.schall.domain.formatDuration
 import io.github.pxldi.schall.domain.groupCopies
@@ -60,21 +56,30 @@ import io.github.pxldi.schall.domain.questions
 import io.github.pxldi.schall.domain.suggestedTrack
 import io.github.pxldi.schall.domain.trackLabel
 import io.github.pxldi.schall.ui.common.Action
-import io.github.pxldi.schall.ui.common.Centered
-import io.github.pxldi.schall.ui.common.Cover
-import io.github.pxldi.schall.ui.common.ErrorLine
+import io.github.pxldi.schall.ui.common.Chip
 import io.github.pxldi.schall.ui.common.KeepFresh
 import io.github.pxldi.schall.ui.common.Load
 import io.github.pxldi.schall.ui.common.LocalApi
-import io.github.pxldi.schall.ui.common.Meta
-import io.github.pxldi.schall.ui.common.StateChip
+import io.github.pxldi.schall.ui.common.PrimaryButton
+import io.github.pxldi.schall.ui.common.PrintMode
+import io.github.pxldi.schall.ui.common.PrintedPage
+import io.github.pxldi.schall.ui.common.QuietButton
+import io.github.pxldi.schall.ui.common.Said
+import io.github.pxldi.schall.ui.common.SectionLabel
+import io.github.pxldi.schall.ui.common.Tone
 import io.github.pxldi.schall.ui.common.rememberAction
+import io.github.pxldi.schall.ui.theme.Duoton
+import io.github.pxldi.schall.ui.theme.LocalInks
+import io.github.pxldi.schall.ui.theme.Misprint
+import io.github.pxldi.schall.ui.theme.MisprintIcon
+import io.github.pxldi.schall.ui.theme.Type
 
 /** One question, its evidence, and the same answers the web offers in the
- * same words. Answering goes back to the list; the list refetches, so the
- * next question is whatever the server says is next. */
+ * same words. Answering or skipping opens the next question in the list, so a
+ * queue can be worked through without going back to it. */
 @Composable
-fun ReviewQuestionScreen(id: String, back: () -> Unit) {
+fun ReviewQuestionScreen(id: String, back: () -> Unit, openInstead: (String) -> Unit) {
+    val api = LocalApi.current
     val (queue, folders) = reviewLoaders()
     KeepFresh(Stale.ReviewQueue, Stale.Downloads) {
         queue.refresh()
@@ -83,235 +88,308 @@ fun ReviewQuestionScreen(id: String, back: () -> Unit) {
     val queueLoad by queue.state.collectAsStateWithLifecycle()
     val foldersLoad by folders.state.collectAsStateWithLifecycle()
     val loading = queueLoad is Load.Loading || foldersLoad is Load.Loading
-    val question = questions((queueLoad as? Load.Ready)?.value, (foldersLoad as? Load.Ready)?.value).firstOrNull { it.id == id }
+    val all = questions((queueLoad as? Load.Ready)?.value, (foldersLoad as? Load.Ready)?.value)
+    val index = all.indexOfFirst { it.id == id }
+    val question = all.getOrNull(index)
     val decide = rememberAction()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(question?.label ?: "Review") },
-                navigationIcon = { IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") } },
-            )
-        },
-    ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            when {
-                question is Question.Folder -> FolderQuestion(question.download, decide, back)
-                question is Question.Downloaded -> WantQuestion(question.want, version = false, decide, back)
-                question is Question.Version -> WantQuestion(question.want, version = true, decide, back)
-                loading -> Centered { CircularProgressIndicator() }
-                else -> Centered { Text("This question has been answered.") }
+    if (question == null) {
+        Box(Modifier.fillMaxSize().background(Duoton.ground).padding(24.dp), contentAlignment = Alignment.Center) {
+            if (loading) CircularProgressIndicator(color = Duoton.ink2)
+            else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text("This question has been answered.", style = Type.body, color = Duoton.ink2)
+                QuietButton("Back", Misprint.ChevronLeft, back)
             }
         }
+        return
+    }
+
+    val next = all.getOrNull(index + 1) ?: all.getOrNull(index - 1)
+    val onward: () -> Unit = { if (next != null) openInstead(next.id) else back() }
+    val face = face(question, api)
+    val counter = "${index + 1} of ${all.size}"
+
+    when (question) {
+        is Question.Folder -> FolderQuestion(question.download, face, counter, decide, back, onward)
+        is Question.Downloaded -> WantQuestion(question.want, version = false, face, counter, decide, back, onward, skip = next?.let { { openInstead(it.id) } })
+        is Question.Version -> WantQuestion(question.want, version = true, face, counter, decide, back, onward, skip = next?.let { { openInstead(it.id) } })
     }
 }
 
 @Composable
-private fun Head(cover: String?, label: String, title: String, second: String, third: String) {
-    val api = LocalApi.current
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Cover(cover, api.session.token)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            StateChip(label)
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Meta(second)
-            Meta(third)
-        }
+private fun Counter(text: String) {
+    Text(text, style = Type.body, color = Duoton.ink, modifier = Modifier.padding(end = 16.dp))
+}
+
+/** The answers, fixed at the bottom so the thumb finds them on every question. */
+@Composable
+private fun AnswerBar(error: String, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxWidth().background(Duoton.ground).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 14.dp)) {
+        if (error.isNotEmpty()) Text(error, style = Type.small, color = Duoton.fail, modifier = Modifier.padding(bottom = 8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) { content() }
     }
 }
 
 @Composable
-private fun WantQuestion(want: ReviewItem, version: Boolean, decide: Action, back: () -> Unit) {
+private fun WantQuestion(
+    want: ReviewItem,
+    version: Boolean,
+    face: QuestionFace,
+    counter: String,
+    decide: Action,
+    back: () -> Unit,
+    onward: () -> Unit,
+    skip: (() -> Unit)?,
+) {
     val api = LocalApi.current
     val target = want.target
     val filed = want.kind == "stopped" && want.fileRecordingId != null
     val groups = remember(want) {
         groupCopies(want.copies.filter { it.verdict == "held" || want.kind == "stopped" }, want.copyGroups)
     }
+    val preview = rememberPreview()
     var chosen by rememberSaveable(want.target.id) { mutableStateOf<String?>(null) }
     var removing by rememberSaveable(want.target.id) { mutableStateOf(false) }
-    fun answered(block: suspend () -> Unit) = decide.run(Stale.ReviewQueue, Stale.Downloads, Stale.Wants, done = back, block = block)
+    var more by remember { mutableStateOf(false) }
+    fun answered(block: suspend () -> Unit) = decide.run(Stale.ReviewQueue, Stale.Downloads, Stale.Wants, done = onward, block = block)
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Head(
-            cover = target.originAlbumId?.let { api.coverUrl(it) },
-            label = if (version) "Version" else "Downloaded",
-            title = target.title,
-            second = target.artist,
-            third = listOfNotNull(target.album.ifEmpty { null }, formatDuration(target.durationMs).ifEmpty { null }, target.isrc).joinToString(" · "),
-        )
-
-        if (!version && !filed) {
-            Player(copy = groups.firstOrNull { it.best.id == chosen }?.best)
-            if (groups.isEmpty()) Meta("No copy is left to hear.")
-            groups.forEach { group ->
-                CopyCard(group, chosen = chosen == group.best.id) { chosen = group.best.id }
+    Column(Modifier.fillMaxSize().background(Duoton.ground)) {
+        Box(Modifier.weight(1f)) {
+            PrintedPage(
+                title = target.title,
+                covers = listOf(face.cover),
+                mode = PrintMode.Single,
+                printHeight = 340.dp,
+                titleSize = 56,
+                subtitle = listOf(target.artist, target.album, formatDuration(target.durationMs)).filter { it.isNotEmpty() }.joinToString(" · "),
+                back = back,
+                actions = { Counter(counter) },
+            ) {
+                if (!version && !filed) {
+                    if (groups.isEmpty()) item { Said("No copy is left to hear.") }
+                    groups.forEach { group ->
+                        item(key = group.best.id) {
+                            CopyCard(group, chosen = chosen == group.best.id, preview = preview) { chosen = group.best.id }
+                        }
+                    }
+                }
+                if (!version && filed) {
+                    item(key = "filed") {
+                        Panel(selected = false) {
+                            Text("Already a file", style = Type.label, color = Duoton.ink3)
+                            Text(want.fileTitle.orEmpty(), style = Type.name, color = Duoton.ink)
+                            Text(listOfNotNull(want.fileArtist, want.fileReleaseTitle).joinToString(" · "), style = Type.body, color = Duoton.ink2)
+                            Text("The library calls this file another recording. Accept says it is this one.", style = Type.small, color = Duoton.ink2)
+                        }
+                    }
+                }
+                if (version) {
+                    want.candidates.forEach { candidate ->
+                        item(key = candidate.recordingId) {
+                            CandidateCard(candidate, chosen = chosen == candidate.recordingId) { chosen = candidate.recordingId }
+                        }
+                    }
+                }
+                if (want.ruledOut > 0) item { Said("${want.ruledOut} ruled out already.") }
             }
         }
 
-        if (!version && filed) {
-            OutlinedCard {
-                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Already a file", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(want.fileTitle.orEmpty(), style = MaterialTheme.typography.bodyLarge)
-                    Meta(listOfNotNull(want.fileArtist, want.fileReleaseTitle).joinToString(" · "))
-                    Meta("The library calls this file another recording. Accept says it is this one.")
+        AnswerBar(decide.error) {
+            val enabled = !decide.busy
+            when {
+                version -> PrimaryButton("Use", Misprint.Check, { chosen?.let { recording -> answered { api.chooseRecording(target.id, recording) } } }, Modifier.weight(1f), enabled = enabled && chosen != null)
+                filed -> PrimaryButton("Accept", Misprint.Check, { answered { api.acceptFiledCopy(target.id) } }, Modifier.weight(1f), enabled = enabled)
+                else -> PrimaryButton("Accept copy", Misprint.Check, { chosen?.let { copy -> answered { api.acceptCopy(copy) } } }, Modifier.weight(1f), enabled = enabled && chosen != null)
+            }
+            if (!version && !filed) {
+                QuietButton(null, Misprint.Close, { answered { api.noneOfThese(target.id) } }, enabled = enabled, description = "None of these")
+            }
+            if (skip != null) QuietButton(null, Misprint.Last, skip, enabled = enabled, description = "Skip")
+            Box {
+                QuietButton(null, Misprint.More, { more = true }, enabled = enabled, description = "More answers")
+                DropdownMenu(expanded = more, onDismissRequest = { more = false }, containerColor = Duoton.raise) {
+                    if (!version) {
+                        DropdownMenuItem(
+                            text = { Text("Wrong song", style = Type.name) },
+                            leadingIcon = { MisprintIcon(Misprint.Ban, size = 18.dp) },
+                            onClick = {
+                                more = false
+                                answered { api.wrongSong(target.id) }
+                            },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Remove from Wishlist", style = Type.name) },
+                        leadingIcon = { MisprintIcon(Misprint.Delete, size = 18.dp) },
+                        onClick = {
+                            more = false
+                            removing = true
+                        },
+                    )
                 }
             }
-        }
-
-        if (version) {
-            want.candidates.forEach { candidate ->
-                CandidateCard(candidate, chosen = chosen == candidate.recordingId) { chosen = candidate.recordingId }
-            }
-        }
-
-        if (want.ruledOut > 0) Meta("${want.ruledOut} ruled out already.")
-        ErrorLine(decide.error)
-
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!version && !filed) {
-                Button(onClick = { chosen?.let { copy -> answered { api.acceptCopy(copy) } } }, enabled = !decide.busy && chosen != null) { Text("Accept") }
-            }
-            if (!version && filed) {
-                Button(onClick = { answered { api.acceptFiledCopy(target.id) } }, enabled = !decide.busy) { Text("Accept") }
-            }
-            if (version) {
-                Button(onClick = { chosen?.let { recording -> answered { api.chooseRecording(target.id, recording) } } }, enabled = !decide.busy && chosen != null) { Text("Use") }
-            }
-            if (!version && !filed) {
-                OutlinedButton(onClick = { answered { api.noneOfThese(target.id) } }, enabled = !decide.busy) { Text("None of these") }
-            }
-            if (!version) {
-                OutlinedButton(onClick = { answered { api.wrongSong(target.id) } }, enabled = !decide.busy) { Text("Wrong song") }
-            }
-            TextButton(onClick = { removing = true }, enabled = !decide.busy) { Text("Remove from Wishlist") }
         }
     }
 
     if (removing) {
         AlertDialog(
             onDismissRequest = { removing = false },
-            title = { Text("Remove from Wishlist?") },
-            text = { Text("${target.artist} – ${target.title} stops being looked for.") },
+            containerColor = Duoton.raise,
+            title = { Text("Remove from Wishlist?", style = Type.name) },
+            text = { Text("${target.artist} – ${target.title} stops being looked for.", style = Type.body, color = Duoton.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     removing = false
                     answered { api.stopLooking(target.id) }
-                }) { Text("Remove") }
+                }) { Text("Remove", color = Duoton.ink) }
             },
-            dismissButton = { TextButton(onClick = { removing = false }) { Text("Keep") } },
+            dismissButton = { TextButton(onClick = { removing = false }) { Text("Keep", color = Duoton.ink2) } },
         )
     }
 }
 
+/** A card on the panel; the chosen one is ringed in the page's light ink. */
 @Composable
-private fun ChoiceCard(chosen: Boolean, onChoose: () -> Unit, content: @Composable () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth().selectable(selected = chosen, onClick = onChoose, role = Role.RadioButton),
-        colors = CardDefaults.cardColors(
-            containerColor = if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-        ),
-    ) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            RadioButton(selected = chosen, onClick = null)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
-        }
+private fun Panel(selected: Boolean, onSelect: (() -> Unit)? = null, content: @Composable () -> Unit) {
+    val inks = LocalInks.current
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .clip(shape)
+            .background(Duoton.panel)
+            .border(2.dp, if (selected) inks.light else Color.Transparent, shape)
+            .then(if (onSelect != null) Modifier.selectable(selected = selected, onClick = onSelect, role = Role.RadioButton) else Modifier)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) { content() }
+}
+
+@Composable
+private fun Evidence(agrees: List<String>, differs: List<String>) {
+    if (agrees.isEmpty() && differs.isEmpty()) return
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        agrees.forEach { Chip(it, Tone.Quiet, Misprint.Check) }
+        differs.forEach { Chip(it, Tone.Want, Misprint.Alert) }
     }
 }
 
 @Composable
-private fun CopyCard(group: CopyGroupView, chosen: Boolean, onChoose: () -> Unit) {
+private fun CopyCard(group: CopyGroupView, chosen: Boolean, preview: Preview, onChoose: () -> Unit) {
     val copy = group.best
     val evidence = copy.evidence
-    ChoiceCard(chosen, onChoose) {
-        Text(copy.name, style = MaterialTheme.typography.bodyLarge, maxLines = 2)
-        Meta(
-            listOfNotNull(
-                evidence?.bitRate?.let { "$it kbps" },
-                formatBytes(copy.sizeBytes ?: evidence?.sizeBytes).ifEmpty { null },
-                evidence?.observed?.durationMs?.let { formatDuration(it) },
-                if (group.rips > 1) "${group.rips} rips of this audio" else null,
-                copy.username.ifEmpty { null },
-            ).joinToString(" · "),
-        )
-        if (!evidence?.agrees.isNullOrEmpty()) Meta("Agrees: ${evidence.agrees.joinToString(", ")}")
-        if (!evidence?.differs.isNullOrEmpty()) Meta("Differs: ${evidence.differs.joinToString(", ")}", error = true)
-        Meta(copy.summary, maxLines = 4)
+    val current = preview.current == copy.id
+    val format = copy.name.substringAfterLast('.', "").uppercase().takeIf { it.length in 2..5 }
+    Panel(selected = chosen, onSelect = onChoose) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            PlayButton(current && preview.playing, onClick = {
+                onChoose()
+                preview.toggle(copy.id)
+            })
+            Column(Modifier.weight(1f)) {
+                Text(
+                    listOfNotNull(format, evidence?.bitRate?.let { "$it kbps" }, evidence?.observed?.durationMs?.let { formatDuration(it) }).joinToString(" · ").ifEmpty { copy.name },
+                    style = Type.name,
+                    color = Duoton.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    listOfNotNull(
+                        copy.username.ifEmpty { null },
+                        formatBytes(copy.sizeBytes ?: evidence?.sizeBytes).ifEmpty { null },
+                        if (group.rips > 1) "${group.rips} rips" else null,
+                    ).joinToString(" · "),
+                    style = Type.body,
+                    color = Duoton.ink2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (current) Text(formatDuration(preview.position).ifEmpty { "0:00" }, style = Type.small, color = Duoton.ink3)
+        }
+        if (current) Scrubber(preview)
+        Text(copy.name, style = Type.small, color = Duoton.ink3, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Evidence(evidence?.agrees.orEmpty(), evidence?.differs.orEmpty())
+        if (copy.summary.isNotEmpty()) Text(copy.summary, style = Type.small, color = Duoton.ink2, maxLines = 4, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
 private fun CandidateCard(candidate: AcquisitionCandidate, chosen: Boolean, onChoose: () -> Unit) {
-    ChoiceCard(chosen, onChoose) {
-        Text(candidate.trackTitle, style = MaterialTheme.typography.bodyLarge)
-        Meta(listOfNotNull(candidate.artistName.ifEmpty { null }, candidate.releaseTitle).joinToString(" · "))
-        Meta(listOfNotNull(formatDuration(candidate.durationMs).ifEmpty { null }, candidate.isrc).joinToString(" · "))
-        if (candidate.agrees.isNotEmpty()) Meta("Agrees: ${candidate.agrees.joinToString(", ")}")
-        if (candidate.differs.isNotEmpty()) Meta("Differs: ${candidate.differs.joinToString(", ")}", error = true)
+    Panel(selected = chosen, onSelect = onChoose) {
+        Text(candidate.trackTitle, style = Type.name, color = Duoton.ink)
+        Text(listOfNotNull(candidate.artistName.ifEmpty { null }, candidate.releaseTitle).joinToString(" · "), style = Type.body, color = Duoton.ink2)
+        val details = listOfNotNull(formatDuration(candidate.durationMs).ifEmpty { null }, candidate.isrc).joinToString(" · ")
+        if (details.isNotEmpty()) Text(details, style = Type.small, color = Duoton.ink3)
+        Evidence(candidate.agrees, candidate.differs)
     }
 }
 
 /** An album folder whose files did not all match. Each file that stopped the
  * import can be named as one track of the release; that settles the file
  * without leaving the folder, because there is usually another file left, so
- * it refetches instead of going back. Check again runs the import with the
+ * it refetches instead of moving on. Check again runs the import with the
  * decisions applied. */
 @Composable
-private fun FolderQuestion(download: DownloadRequest, decide: Action, back: () -> Unit) {
+private fun FolderQuestion(download: DownloadRequest, face: QuestionFace, counter: String, decide: Action, back: () -> Unit, onward: () -> Unit) {
     val api = LocalApi.current
     val settle = rememberAction()
     val evidence = download.importEvidence
     val catalogue = remember(evidence) { importCatalogue(evidence) }
     val files = remember(evidence) { orderFiles(evidence?.files.orEmpty()) }
-    val (first, second) = downloadTitle(download)
     val missing = evidence?.unmatchedTracks.orEmpty()
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Head(
-            cover = download.albumId?.let { api.coverUrl(it) },
-            label = "Folder",
-            title = first,
-            second = second,
-            third = "${download.username} · ${download.fileCount} files",
-        )
-        Meta(download.importError.orEmpty(), error = true)
-        evidence?.problems?.forEach { Meta(it, error = true) }
-        files.forEach { file ->
-            FileCard(
-                file = file,
-                catalogue = catalogue,
-                decision = download.importDecisions.firstOrNull { it.fileName == file.name },
-                busy = settle.busy,
-                onResolve = { trackId -> settle.run(Stale.Downloads) { api.resolveImportTrack(download.id, file.name, trackId) } },
-                onWithdraw = { decisionId -> settle.run(Stale.Downloads) { api.withdrawImportResolution(download.id, decisionId) } },
-            )
+    Column(Modifier.fillMaxSize().background(Duoton.ground)) {
+        Box(Modifier.weight(1f)) {
+            PrintedPage(
+                title = face.title,
+                covers = listOf(face.cover),
+                mode = PrintMode.Single,
+                printHeight = 300.dp,
+                titleSize = 52,
+                subtitle = listOf(face.subtitle, download.username).filter { it.isNotEmpty() }.joinToString(" · "),
+                back = back,
+                actions = { Counter(counter) },
+            ) {
+                download.importError?.takeIf { it.isNotEmpty() }?.let { item { Said(it, error = true) } }
+                evidence?.problems?.forEach { problem -> item { Said(problem, error = true) } }
+                files.forEach { file ->
+                    item(key = file.name) {
+                        FileCard(
+                            file = file,
+                            catalogue = catalogue,
+                            decision = download.importDecisions.firstOrNull { it.fileName == file.name },
+                            busy = settle.busy,
+                            onResolve = { trackId -> settle.run(Stale.Downloads) { api.resolveImportTrack(download.id, file.name, trackId) } },
+                            onWithdraw = { decisionId -> settle.run(Stale.Downloads) { api.withdrawImportResolution(download.id, decisionId) } },
+                        )
+                    }
+                }
+                if (missing.isNotEmpty()) item { Said("No file for ${missing.joinToString(", ") { trackLabel(it) }}.") }
+            }
         }
-        if (missing.isNotEmpty()) Meta("No file for ${missing.joinToString(", ") { trackLabel(it) }}.", maxLines = 6)
-        ErrorLine(settle.error.ifEmpty { decide.error })
-        Row {
-            OutlinedButton(
-                onClick = { decide.run(Stale.Downloads, Stale.ReviewQueue, done = back) { api.revalidateDownload(download.id) } },
+        AnswerBar(settle.error.ifEmpty { decide.error }) {
+            PrimaryButton(
+                "Check again",
+                Misprint.Refresh,
+                { decide.run(Stale.Downloads, Stale.ReviewQueue, done = onward) { api.revalidateDownload(download.id) } },
+                Modifier.weight(1f),
                 enabled = !decide.busy,
-            ) { Text("Check again") }
+            )
         }
     }
 }
 
 /** One file of the folder. A file that matched says how; one that did not
  * lists the tracks it could be, the evidence's own candidates first and the
- * rest of the release behind "All tracks". */
+ * rest of the release behind All tracks. */
 @Composable
 private fun FileCard(
     file: ImportFileEvidence,
     catalogue: List<ImportTags>,
-    decision: io.github.pxldi.schall.data.ImportDecision?,
+    decision: ImportDecision?,
     busy: Boolean,
     onResolve: (String) -> Unit,
     onWithdraw: (String) -> Unit,
@@ -323,42 +401,51 @@ private fun FileCard(
     val candidateIds = file.candidates.orEmpty().mapNotNull { it.track.trackId }.toMutableSet()
     file.expected?.trackId?.let { candidateIds += it }
     val shown = if (all || candidateIds.isEmpty()) catalogue else catalogue.filter { it.trackId in candidateIds }
+    val inks = LocalInks.current
 
-    OutlinedCard(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(file.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
-            when {
-                decision != null -> Meta("Resolved as “${decision.trackTitle}”. Check again to apply it.")
-                file.match != null -> Meta(file.match.summary)
-            }
-            if (open) file.problems.forEach { Meta(it, error = true) }
-            if (open && file.resolvable && catalogue.isNotEmpty()) {
-                Text("This file is", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                shown.forEach { track ->
-                    val candidate = file.candidates?.firstOrNull { it.track.trackId == track.trackId }
-                    val checked = selected == track.trackId
-                    Row(
-                        Modifier.fillMaxWidth().selectable(selected = checked, onClick = { chosen = track.trackId.orEmpty() }, role = Role.RadioButton),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = checked, onClick = null)
-                        Column(Modifier.padding(start = 4.dp)) {
-                            Text(trackLabel(track), style = MaterialTheme.typography.bodyMedium)
-                            if (!candidate?.agrees.isNullOrEmpty()) Meta("Agrees: ${candidate.agrees.joinToString(", ")}")
-                            if (!candidate?.differs.isNullOrEmpty()) Meta("Differs: ${candidate.differs.joinToString(", ")}", error = true)
-                            candidate?.takenBy?.let { Meta("Already matched by $it") }
-                        }
+    Panel(selected = false) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            MisprintIcon(
+                if (open) Misprint.Alert else Misprint.Check,
+                size = 16.dp,
+                tint = if (open) Duoton.want else Duoton.own,
+            )
+            Text(file.name, style = Type.name.copy(fontSize = Type.body.fontSize), color = Duoton.ink, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        }
+        when {
+            decision != null -> Text("Resolved as “${decision.trackTitle}”. Check again to apply it.", style = Type.small, color = Duoton.ink2)
+            file.match != null -> Text(file.match.summary, style = Type.small, color = Duoton.ink2)
+        }
+        if (open) file.problems.forEach { Text(it, style = Type.small, color = Duoton.want) }
+        if (open && file.resolvable && catalogue.isNotEmpty()) {
+            SectionLabel("This file is", Modifier.padding(start = 0.dp))
+            shown.forEach { track ->
+                val candidate = file.candidates?.firstOrNull { it.track.trackId == track.trackId }
+                val checked = selected == track.trackId
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+                        .selectable(selected = checked, onClick = { chosen = track.trackId.orEmpty() }, role = Role.RadioButton)
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        Modifier.size(20.dp).clip(CircleShape).border(2.dp, if (checked) inks.light else Duoton.line2, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { if (checked) Box(Modifier.size(10.dp).clip(CircleShape).background(inks.light)) }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(trackLabel(track), style = Type.body, color = Duoton.ink)
+                        Evidence(candidate?.agrees.orEmpty(), candidate?.differs.orEmpty())
+                        candidate?.takenBy?.let { Text("Already matched by $it", style = Type.small, color = Duoton.ink3) }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { onResolve(selected) }, enabled = !busy && selected.isNotEmpty()) { Text("Resolve") }
-                    if (!all && shown.size < catalogue.size) TextButton(onClick = { all = true }) { Text("All tracks") }
-                }
             }
-            if (open && !file.resolvable) Meta("Not a judgement call. Download the file again.")
-            if (decision != null) {
-                Row { TextButton(onClick = { onWithdraw(decision.id) }, enabled = !busy) { Text("Undo") } }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PrimaryButton("Resolve", Misprint.Check, { onResolve(selected) }, enabled = !busy && selected.isNotEmpty(), height = 40.dp)
+                if (!all && shown.size < catalogue.size) QuietButton("All tracks", null, { all = true }, height = 40.dp)
             }
         }
+        if (open && !file.resolvable) Text("Not a judgement call. Download the file again.", style = Type.small, color = Duoton.ink2)
+        if (decision != null) QuietButton("Undo", Misprint.Undo, { onWithdraw(decision.id) }, enabled = !busy, height = 40.dp)
     }
 }

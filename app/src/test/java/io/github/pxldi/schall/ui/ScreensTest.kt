@@ -94,4 +94,24 @@ class ScreensTest {
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("build/screens/review.png")
     }
+
+    @Test
+    fun question() {
+        show()
+        compose.onAllNodesWithText("Review").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onAllNodesWithText("Watchfire").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/question.png")
+    }
+
+    @Test
+    fun version() {
+        show()
+        compose.onAllNodesWithText("Review").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onAllNodesWithText("Evensong (single edit)").onFirst().performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("build/screens/version.png")
+    }
 }
