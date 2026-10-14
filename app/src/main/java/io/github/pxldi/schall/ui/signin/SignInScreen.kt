@@ -57,7 +57,7 @@ fun SignInScreen(app: SchallApp) {
         val text = result.contents ?: return@rememberLauncherForActivityResult
         val code = runCatching { json.decodeFromString<PhoneCode>(text) }.getOrNull()
         if (code == null) {
-            error = "That code is not a Schall phone code."
+            error = "Not a Schall phone code."
         } else {
             server = code.server
             token = code.token

@@ -134,7 +134,7 @@ class Api(val session: Session, val client: OkHttpClient) {
     private fun problem(status: Int, text: String): ApiException {
         val problem = runCatching { json.decodeFromString<Problem>(text) }.getOrNull()
         val message = when {
-            status == 401 -> "The server did not accept this token."
+            status == 401 -> "Schall didn't accept this token."
             problem?.details?.firstOrNull() != null -> problem.details.first()
             problem?.title != null -> problem.title
             else -> "Request failed ($status)"
@@ -150,4 +150,8 @@ class Api(val session: Session, val client: OkHttpClient) {
 fun enc(value: String): String = URLEncoder.encode(value, "UTF-8").replace("+", "%20")
 
 /** What a screen prints under the control that failed. */
-fun Throwable.text(): String = message?.takeIf { it.isNotBlank() } ?: "Something went wrong."
+fun Throwable.text(): String = when {
+    // No answer at all: OkHttp's own words name a socket, not what happened.
+    this is IOException && this !is ApiException -> "Schall didn't answer. It may be restarting."
+    else -> message?.takeIf { it.isNotBlank() } ?: "Something went wrong."
+}

@@ -34,4 +34,10 @@ class ApiTest {
     fun the_query_encoding_keeps_a_space_as_percent_twenty() {
         assertEquals("Massive%20Attack", enc("Massive Attack"))
     }
+
+    @Test
+    fun no_answer_reads_as_a_restart_and_a_refusal_keeps_the_server_words() {
+        assertEquals("Schall didn't answer. It may be restarting.", java.net.ConnectException("Failed to connect to /10.0.0.5:8080").text())
+        assertEquals("That's gone.", ApiException(404, "That's gone.").text())
+    }
 }
