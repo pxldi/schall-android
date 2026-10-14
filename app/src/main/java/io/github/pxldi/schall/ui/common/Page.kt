@@ -322,8 +322,8 @@ fun WantToggle(wanted: Boolean, name: String, onClick: () -> Unit, enabled: Bool
         Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .clickable(enabled = enabled, role = Role.Button, onClickLabel = if (wanted) "Remove $name" else "Want $name", onClick = onClick)
-            .semantics { this[androidx.compose.ui.semantics.SemanticsProperties.ContentDescription] = listOf(if (wanted) "Remove $name" else "Want $name") },
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = if (wanted) "Remove $name" else "Add $name to wishlist", onClick = onClick)
+            .semantics { this[androidx.compose.ui.semantics.SemanticsProperties.ContentDescription] = listOf(if (wanted) "Remove $name" else "Add $name to wishlist") },
         contentAlignment = Alignment.Center,
     ) {
         Box(

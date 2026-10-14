@@ -115,7 +115,7 @@ fun ArtistScreen(id: String, back: () -> Unit, openRelease: (String) -> Unit) {
                     IconButton(onClick = { menu = true }) { MisprintIcon(Misprint.More, description = "More") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                         DropdownMenuItem(
-                            text = { Text(if (artist.wantMissing) "Stop wanting missing" else "Want ${artist.discography.missing} missing", style = Type.body) },
+                            text = { Text(if (artist.wantMissing) "Remove missing" else "Add ${artist.discography.missing} missing", style = Type.body) },
                             leadingIcon = { MisprintIcon(if (artist.wantMissing) Misprint.Minus else Misprint.Want, size = 18.dp) },
                             onClick = {
                                 menu = false
@@ -164,7 +164,7 @@ fun ArtistScreen(id: String, back: () -> Unit, openRelease: (String) -> Unit) {
             onDismissRequest = { unfollowing = false },
             containerColor = Duoton.panel,
             title = { Text("Unfollow ${artist.name}?", style = Type.name) },
-            text = { Text("Schall stops looking for their new releases. Nothing you own is touched.", style = Type.body, color = Duoton.ink2) },
+            text = { Text("Schall stops watching for their new releases. Your files stay.", style = Type.body, color = Duoton.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     unfollowing = false

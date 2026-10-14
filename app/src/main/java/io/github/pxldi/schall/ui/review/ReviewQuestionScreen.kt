@@ -97,7 +97,7 @@ fun ReviewQuestionScreen(id: String, back: () -> Unit, openInstead: (String) -> 
         Box(Modifier.fillMaxSize().background(Duoton.ground).padding(24.dp), contentAlignment = Alignment.Center) {
             if (loading) CircularProgressIndicator(color = Duoton.ink2)
             else Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("This question has been answered.", style = Type.body, color = Duoton.ink2)
+                Text("This was already decided.", style = Type.body, color = Duoton.ink2)
                 QuietButton("Back", Misprint.ChevronLeft, back)
             }
         }
@@ -166,7 +166,7 @@ private fun WantQuestion(
                 actions = { Counter(counter) },
             ) {
                 if (!version && !filed) {
-                    if (groups.isEmpty()) item { Said("No copy is left to hear.") }
+                    if (groups.isEmpty()) item { Said("No copies left.") }
                     groups.forEach { group ->
                         item(key = group.best.id) {
                             CopyCard(group, chosen = chosen == group.best.id, preview = preview) { chosen = group.best.id }
@@ -176,10 +176,10 @@ private fun WantQuestion(
                 if (!version && filed) {
                     item(key = "filed") {
                         Panel(selected = false) {
-                            Text("Already a file", style = Type.label, color = Duoton.ink3)
+                            Text("In your library", style = Type.label, color = Duoton.ink3)
                             Text(want.fileTitle.orEmpty(), style = Type.name, color = Duoton.ink)
                             Text(listOfNotNull(want.fileArtist, want.fileReleaseTitle).joinToString(" · "), style = Type.body, color = Duoton.ink2)
-                            Text("The library calls this file another recording. Accept says it is this one.", style = Type.small, color = Duoton.ink2)
+                            Text("Filed as another song. Accept to match it to this one.", style = Type.small, color = Duoton.ink2)
                         }
                     }
                 }
@@ -197,8 +197,8 @@ private fun WantQuestion(
         AnswerBar(decide.error) {
             val enabled = !decide.busy
             when {
-                version -> PrimaryButton("Use", Misprint.Check, { chosen?.let { recording -> answered { api.chooseRecording(target.id, recording) } } }, Modifier.weight(1f), enabled = enabled && chosen != null)
-                filed -> PrimaryButton("Accept", Misprint.Check, { answered { api.acceptFiledCopy(target.id) } }, Modifier.weight(1f), enabled = enabled)
+                version -> PrimaryButton("Use version", Misprint.Check, { chosen?.let { recording -> answered { api.chooseRecording(target.id, recording) } } }, Modifier.weight(1f), enabled = enabled && chosen != null)
+                filed -> PrimaryButton("Accept copy", Misprint.Check, { answered { api.acceptFiledCopy(target.id) } }, Modifier.weight(1f), enabled = enabled)
                 else -> PrimaryButton("Accept copy", Misprint.Check, { chosen?.let { copy -> answered { api.acceptCopy(copy) } } }, Modifier.weight(1f), enabled = enabled && chosen != null)
             }
             if (!version && !filed) {
@@ -219,7 +219,7 @@ private fun WantQuestion(
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("Remove from Wishlist", style = Type.name) },
+                        text = { Text("Remove from wishlist", style = Type.name) },
                         leadingIcon = { MisprintIcon(Misprint.Delete, size = 18.dp) },
                         onClick = {
                             more = false
@@ -235,8 +235,8 @@ private fun WantQuestion(
         AlertDialog(
             onDismissRequest = { removing = false },
             containerColor = Duoton.raise,
-            title = { Text("Remove from Wishlist?", style = Type.name) },
-            text = { Text("${target.artist} – ${target.title} stops being looked for.", style = Type.body, color = Duoton.ink2) },
+            title = { Text("Remove from wishlist?", style = Type.name) },
+            text = { Text("Schall stops searching for ${target.artist} – ${target.title}.", style = Type.body, color = Duoton.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     removing = false
@@ -413,7 +413,7 @@ private fun FileCard(
             Text(file.name, style = Type.name.copy(fontSize = Type.body.fontSize), color = Duoton.ink, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         }
         when {
-            decision != null -> Text("Resolved as “${decision.trackTitle}”. Check again to apply it.", style = Type.small, color = Duoton.ink2)
+            decision != null -> Text("Resolved as “${decision.trackTitle}”. Check again to apply.", style = Type.small, color = Duoton.ink2)
             file.match != null -> Text(file.match.summary, style = Type.small, color = Duoton.ink2)
         }
         if (open) file.problems.forEach { Text(it, style = Type.small, color = Duoton.want) }
@@ -445,7 +445,7 @@ private fun FileCard(
                 if (!all && shown.size < catalogue.size) QuietButton("All tracks", null, { all = true }, height = 40.dp)
             }
         }
-        if (open && !file.resolvable) Text("Not a judgement call. Download the file again.", style = Type.small, color = Duoton.ink2)
+        if (open && !file.resolvable) Text("Can't fix by hand. Download it again.", style = Type.small, color = Duoton.ink2)
         if (decision != null) QuietButton("Undo", Misprint.Undo, { onWithdraw(decision.id) }, enabled = !busy, height = 40.dp)
     }
 }

@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -80,7 +78,6 @@ fun ReleaseScreen(id: String, back: () -> Unit, openArtist: (String) -> Unit) {
     val release = (detailLoad as? Load.Ready<ReleaseDetail>)?.value
     val items = (tracksLoad as? Load.Ready<List<Track>>)?.value.orEmpty()
     val act = rememberAction()
-    var menu by rememberSaveable { mutableStateOf(false) }
     var removing by rememberSaveable { mutableStateOf(false) }
 
     val held = items.count { it.held() }
@@ -102,20 +99,10 @@ fun ReleaseScreen(id: String, back: () -> Unit, openArtist: (String) -> Unit) {
         refreshing = refreshing,
         onRefresh = reload,
         actions = {
+            // Remove sits in the header as an icon, as on the web, rather
+            // than behind a menu of one item.
             if (held > 0 || wanted > 0) {
-                Box {
-                    IconButton(onClick = { menu = true }) { MisprintIcon(Misprint.More, description = "More") }
-                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Remove", style = Type.body) },
-                            leadingIcon = { MisprintIcon(Misprint.Delete, size = 18.dp) },
-                            onClick = {
-                                menu = false
-                                removing = true
-                            },
-                        )
-                    }
-                }
+                IconButton(onClick = { removing = true }) { MisprintIcon(Misprint.Delete, description = "Remove") }
             }
         },
         belowTitle = {
@@ -127,7 +114,7 @@ fun ReleaseScreen(id: String, back: () -> Unit, openArtist: (String) -> Unit) {
                     if (facts.isNotEmpty()) Text(facts, style = Type.body, color = Duoton.ink2)
                 }
                 if (missing > 0) {
-                    PrimaryButton("Want rest", Misprint.Plus, { act.run(Stale.Wants) { api.wantRelease(id); reload() } }, enabled = !act.busy, height = 40.dp)
+                    PrimaryButton("Want $missing", Misprint.Plus, { act.run(Stale.Wants) { api.wantRelease(id); reload() } }, enabled = !act.busy, height = 40.dp)
                 }
             }
         },
@@ -160,7 +147,7 @@ fun ReleaseScreen(id: String, back: () -> Unit, openArtist: (String) -> Unit) {
             onDismissRequest = { removing = false },
             containerColor = Duoton.panel,
             title = { Text("Remove ${release.title}?", style = Type.name) },
-            text = { Text("Stops wanting it. What Schall downloaded is deleted in 30 days.", style = Type.body, color = Duoton.ink2) },
+            text = { Text("Leaves your wishlist. Files Schall downloaded are deleted in 30 days.", style = Type.body, color = Duoton.ink2) },
             confirmButton = {
                 TextButton(onClick = {
                     removing = false

@@ -212,7 +212,7 @@ private fun LazyListScope.musicBrainz(query: String) {
                 Load.Loading -> Said("Asking MusicBrainz…")
                 is Load.Failed -> Said(state.message, error = true)
                 is Load.Ready -> {
-                    if (state.value.isEmpty()) Said("MusicBrainz knows no artist by that name.")
+                    if (state.value.isEmpty()) Said("No artist by that name on MusicBrainz.")
                     state.value.forEach { NewArtistRow(it) }
                 }
             }

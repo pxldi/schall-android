@@ -82,7 +82,7 @@ fun face(question: Question, api: Api): QuestionFace = when (question) {
         val recordings = question.want.candidates.size
         QuestionFace(
             target.title,
-            listOf(target.artist, if (recordings == 1) "1 recording" else "$recordings recordings").filter { it.isNotEmpty() }.joinToString(" · "),
+            listOf(target.artist, if (recordings == 1) "1 version" else "$recordings versions").filter { it.isNotEmpty() }.joinToString(" · "),
             CoverRef(target.originAlbumId?.let(api::coverUrl), target.originAlbumId ?: target.id),
             Misprint.Fingerprint,
         )

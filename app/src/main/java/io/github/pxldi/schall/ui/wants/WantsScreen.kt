@@ -39,15 +39,15 @@ import io.github.pxldi.schall.ui.theme.Type
 
 /** The web's two piles: what is being looked for, and what somebody said they
  * don't want, because that decision is taken back where it was taken. */
-private enum class Pile(val label: String) { Looking("Looking"), NotWanted("Not wanted") }
+private enum class Pile(val label: String) { Looking("Searching"), NotWanted("Removed") }
 
 /** The mark at the end of a row, in the web's words and state colours. */
 private fun standing(want: AcquisitionTarget): Triple<Misprint, Tone, String> = when {
     want.waitingOnYou -> Triple(Misprint.Pause, Tone.Want, "Needs you")
-    want.status == "not_wanted" -> Triple(Misprint.Minus, Tone.Quiet, "Not wanted")
+    want.status == "not_wanted" -> Triple(Misprint.Minus, Tone.Quiet, "Removed")
     want.status == "unresolved" -> Triple(Misprint.Busy, Tone.Busy, "Identifying")
     want.status == "searching" -> Triple(Misprint.Search, Tone.Busy, "Searching")
-    else -> Triple(Misprint.Busy, Tone.Busy, "Looking")
+    else -> Triple(Misprint.Busy, Tone.Busy, "Looking for a copy")
 }
 
 @Composable
@@ -89,7 +89,7 @@ fun WantsScreen(back: () -> Unit) {
         page?.notice?.takeIf { it.isNotEmpty() }?.let { item { Said(it) } }
         (load as? Load.Failed)?.let { item { Said(it.message, error = true) } }
         if (stale.isNotEmpty()) item { Said(stale, error = true) }
-        if (page != null && items.isEmpty()) item { Said(if (pile == Pile.Looking) "Nothing is being looked for." else "Nothing is marked not wanted.") }
+        if (page != null && items.isEmpty()) item { Said(if (pile == Pile.Looking) "Wishlist is empty." else "Nothing removed.") }
         items.forEach { want -> item(key = want.id) { WantRow(want) } }
     }
 }
@@ -103,8 +103,8 @@ private fun WantRow(want: AcquisitionTarget) {
         want.status == "not_wanted" -> ""
         want.waitingOnYou -> want.summary
         want.lastAttemptAt != null -> "tried ${relative(want.lastAttemptAt)}"
-        want.nextAttemptAt != null -> "next look ${relative(want.nextAttemptAt)}"
-        else -> "not looked for yet"
+        want.nextAttemptAt != null -> "next try ${relative(want.nextAttemptAt)}"
+        else -> "not searched yet"
     }
     Column {
         Row2(
@@ -114,9 +114,9 @@ private fun WantRow(want: AcquisitionTarget) {
         ) {
             StateMark(icon, tone, word)
             if (want.status == "not_wanted") {
-                QuietButton(null, Misprint.Undo, { act.run(Stale.Wants) { api.lookAgain(want.id) } }, enabled = !act.busy, description = "Look again", height = 40.dp)
+                QuietButton(null, Misprint.Undo, { act.run(Stale.Wants) { api.lookAgain(want.id) } }, enabled = !act.busy, description = "Add back", height = 40.dp)
             } else {
-                QuietButton(null, Misprint.Ban, { act.run(Stale.Wants) { api.stopLooking(want.id) } }, enabled = !act.busy, description = "Don't want", height = 40.dp)
+                QuietButton(null, Misprint.Ban, { act.run(Stale.Wants) { api.stopLooking(want.id) } }, enabled = !act.busy, description = "Remove", height = 40.dp)
             }
         }
         if (act.error.isNotEmpty()) Text(act.error, style = Type.small, color = Duoton.fail, modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp))
