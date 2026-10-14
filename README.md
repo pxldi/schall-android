@@ -5,6 +5,15 @@ music collection manager. It answers the review queue with the audio preview,
 watches downloads and wants, and follows artists. Kotlin and Jetpack Compose,
 printed in the same Duoton inks as the web (Bricolage Grotesque, Misprint icons).
 
+## Install
+
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/pxldi/schall-android"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="54" /></a>
+
+Signed APKs are attached to each [GitHub release](https://github.com/pxldi/schall-android/releases).
+The badge opens [Obtainium](https://obtainium.imranr.dev) with this repository already filled in,
+so it installs the latest release and keeps it updated. Without Obtainium, download the `.apk`
+from the newest release and open it on the phone.
+
 ## Sign in
 
 Open Settings → Phone on the Schall web app, add a phone, and scan the QR code
